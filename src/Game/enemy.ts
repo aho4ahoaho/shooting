@@ -9,12 +9,21 @@ export class Enemy {
     private width: number;
     private height: number;
 
-    constructor(width: number, height: number, speed = 1) {
+    constructor(
+        width: number,
+        height: number,
+        speed = 1,
+        { randomSpeed = true } = {}
+    ) {
         this.width = width;
         this.height = height;
         this.x = randomInt(0, width);
         this.y = randomInt(0, height);
-        this.speed = speed;
+        if (randomSpeed) {
+            this.speed = speed + 0.5 * (Math.random() - 0.5);
+        } else {
+            this.speed = speed;
+        }
         this.direction = Math.random() * Math.PI * 2;
     }
     next() {
