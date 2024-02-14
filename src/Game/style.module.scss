@@ -1,0 +1,30 @@
+div.function {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 1rem 0;
+    gap: 1rem;
+    div.scorePanel {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        padding: 0 2rem;
+    }
+}
+button {
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    border: 0.1rem solid black;
+    font-size: larger;
+}
+div.gamePanel {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 1rem;
+    canvas {
+        border: 1px solid black;
+    }
+}

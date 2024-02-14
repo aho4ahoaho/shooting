@@ -12,16 +12,17 @@
         "prepare": "husky install"
     },
     "dependencies": {
-        "preact": "^10.19.1"
+        "preact": "^10.19.1",
+        "sass": "^1.70.0"
     },
     "devDependencies": {
         "@preact/preset-vite": "^2.6.0",
         "eslint": "^8.56.0",
         "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-react": "^7.33.2",
         "husky": "^9.0.11",
         "lint-staged": "^15.2.2",
         "prettier": "^3.2.5",
-        "scss": "^0.2.4",
         "typescript": "^5.2.2",
         "typescript-eslint": "^7.0.1",
         "vite": "^5.0.0"
