@@ -1,3 +1,7 @@
 export function App() {
-    return <></>;
+    return (
+        <>
+            <p>フルオートは弱いよ（笑）</p>
+        </>
+    );
 }
