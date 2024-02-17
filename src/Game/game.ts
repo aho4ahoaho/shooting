@@ -22,6 +22,7 @@ export class GameEngine {
     private beforeEnemyCount: number = startEnemyCount;
     private level: number = 1;
     private scope: { x: number; y: number } = { x: 0, y: 0 };
+    private score: number = 0;
 
     //その他
     eventFunc: {
@@ -75,29 +76,12 @@ export class GameEngine {
                 canvas.height / scale - enemySize
             )
         );
+
         const onClick = () => {
-            for (const enemy of this.enemys) {
-                const { x: ex, y: ey } = enemy.getPos(); //敵は右下に描画される
-                const { x: sx, y: sy } = this.scope; //スコープは中心に描画される
-                const dx = ex + enemySize / 2 - sx;
-                const dy = ey + enemySize / 2 - sy;
-                if (dx * dx + dy * dy < hitSize * hitSize) {
-                    this.enemys = this.enemys.filter((e) => e !== enemy);
-                    if (this.level < 40) {
-                        //序盤は一気に増やす
-                        this.level += 8;
-                    } else if (this.level > startEnemyCount - 10) {
-                        //一定数を超えたら増やさない
-                        this.level = startEnemyCount - 10;
-                    } else {
-                        //それ以外は少しずつ増やす
-                        this.level += 4;
-                    }
-                    this.eventFunc.kill?.();
-                    break;
-                }
-            }
+            //オブジェクトのthisを参照するためにアロー関数を使う
+            this.shot();
         };
+
         //クリック判定
         canvas.addEventListener("click", onClick);
 
@@ -137,8 +121,41 @@ export class GameEngine {
         }
     }
 
+    async end() {
+        this.stop();
+        await sleep(this.frameTime * 3); //最後の描画が終わるまで待つ
+        gameoverScreen(this.ctx, this.score);
+        this.refresh();
+        this.eventFunc.end?.();
+    }
+
     refresh() {
         this.viewCtx.drawImage(this.bufferCanvas, 0, 0);
+    }
+
+    shot() {
+        for (const enemy of this.enemys) {
+            const { x: ex, y: ey } = enemy.getPos(); //敵は右下に描画される
+            const { x: sx, y: sy } = this.scope; //スコープは中心に描画される
+            const dx = ex + enemySize / 2 - sx;
+            const dy = ey + enemySize / 2 - sy;
+            if (dx * dx + dy * dy < hitSize * hitSize) {
+                this.enemys = this.enemys.filter((e) => e !== enemy);
+                if (this.level < 40) {
+                    //序盤は一気に増やす
+                    this.level += 8;
+                } else if (this.level > startEnemyCount - 10) {
+                    //一定数を超えたら増やさない
+                    this.level = startEnemyCount - 10;
+                } else {
+                    //それ以外は少しずつ増やす
+                    this.level += 4;
+                }
+                this.eventFunc.kill?.();
+                this.score += 1;
+                break;
+            }
+        }
     }
 
     spawnEnemy() {
@@ -159,8 +176,7 @@ export class GameEngine {
         }
 
         if (this.enemys.length > 30) {
-            this.stop();
-            this.eventFunc.end?.();
+            this.end();
         }
     }
 
@@ -192,7 +208,9 @@ export class GameEngine {
     }
 
     destroy() {
-        this.stop();
+        this.end().then(() => {
+            this.bufferCanvas.remove();
+        });
         this.viewCanvas.removeEventListener("click", this.evenlistener.click);
         this.viewCanvas.removeEventListener(
             "mousemove",
@@ -200,11 +218,9 @@ export class GameEngine {
         );
         this.enemys = [];
         this.eventFunc = {};
-        this.bufferCanvas.remove();
     }
 
     getEnemyCount() {
-        console.log(this.enemys);
         return this.enemys.length;
     }
 }
@@ -231,6 +247,7 @@ const scopeRender = (
 
 const titleScreen = (ctx: CanvasRenderingContext2D) => {
     return new Promise<void>((resolve, reject) => {
+        ctx.save();
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, 200, 150);
         ctx.fillStyle = "black";
@@ -247,5 +264,23 @@ const titleScreen = (ctx: CanvasRenderingContext2D) => {
             resolve();
         };
         img.src = "/icon.svg";
+        ctx.restore(); //画像貼るだけなので先にrestoreする
     });
 };
+
+const gameoverScreen = async (ctx: CanvasRenderingContext2D, score: number) => {
+    ctx.save();
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, 200, 150);
+    ctx.fillStyle = "black";
+    ctx.textBaseline = "top";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("ゲームオーバー", 100, 60);
+    ctx.font = "8px sans-serif";
+    ctx.fillText(`スコア: ${score ?? 0}`, 100, 80);
+    ctx.restore();
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
