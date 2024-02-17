@@ -2,8 +2,11 @@ import { Enemy } from "./enemy";
 
 const enemySize = 3;
 const hitSize = 5;
-const startEnemyCount = 100; //多分5秒
+const startEnemyCount = 100; //100*50ms = 5s
+const defaultFrameTime = 50; //ms
+const shotRate = 1000 / 9.75; //ms 9.75発/秒
 type GameEvent = "start" | "end" | "kill" | "spawn";
+
 export class GameEngine {
     //描画用パラメータ
     private viewCanvas: HTMLCanvasElement;
@@ -16,6 +19,7 @@ export class GameEngine {
     private frameTime: number;
     private timerId: number | null = null;
     private endRender: boolean = true;
+    private blockDraw: boolean = false;
 
     //ゲーム用パラメータ
     private enemys: Enemy[] = [];
@@ -23,6 +27,9 @@ export class GameEngine {
     private level: number = 1;
     private scope: { x: number; y: number } = { x: 0, y: 0 };
     private score: number = 0;
+
+    //素材
+    readonly shotSound = new Audio("/assets/nc230658.ogg");
 
     //その他
     eventFunc: {
@@ -35,7 +42,7 @@ export class GameEngine {
     constructor(
         canvas: HTMLCanvasElement,
         scale: number,
-        { frameTime = 50 } = {}
+        { frameTime = defaultFrameTime } = {}
     ) {
         //とりあえず変数を全て格納
         this.viewCanvas = canvas;
@@ -77,13 +84,21 @@ export class GameEngine {
             )
         );
 
-        const onClick = () => {
-            //オブジェクトのthisを参照するためにアロー関数を使う
-            this.shot();
-        };
-
         //クリック判定
-        canvas.addEventListener("click", onClick);
+        let shotTimer = 0;
+        const onMouseDown = () => {
+            this.shot();
+            if (shotTimer) return;
+            shotTimer = setInterval(() => {
+                this.shot();
+            }, shotRate);
+        };
+        const onMouseUp = () => {
+            clearInterval(shotTimer);
+            shotTimer = 0;
+        };
+        canvas.addEventListener("mousedown", onMouseDown);
+        canvas.addEventListener("mouseup", onMouseUp);
 
         const onMouseMove = (e: MouseEvent) => {
             const { clientX, clientY } = e;
@@ -95,8 +110,9 @@ export class GameEngine {
         canvas.addEventListener("mousemove", onMouseMove);
 
         //後で削除するために保存しておく
-        this.evenlistener.click = onClick;
         this.evenlistener.mousemove = onMouseMove;
+        this.evenlistener.mousedown = onMouseDown;
+        this.evenlistener.mouseup = onMouseUp;
 
         this.eventFunc.start?.();
     }
@@ -126,14 +142,19 @@ export class GameEngine {
         await sleep(this.frameTime * 3); //最後の描画が終わるまで待つ
         gameoverScreen(this.ctx, this.score);
         this.refresh();
+        this.blockDraw = true;
         this.eventFunc.end?.();
     }
 
     refresh() {
+        if (this.blockDraw) return;
         this.viewCtx.drawImage(this.bufferCanvas, 0, 0);
     }
 
     shot() {
+        if (this.timerId === null) return;
+        this.shotSound.currentTime = 0;
+        this.shotSound.play();
         for (const enemy of this.enemys) {
             const { x: ex, y: ey } = enemy.getPos(); //敵は右下に描画される
             const { x: sx, y: sy } = this.scope; //スコープは中心に描画される
@@ -211,13 +232,21 @@ export class GameEngine {
         this.end().then(() => {
             this.bufferCanvas.remove();
         });
-        this.viewCanvas.removeEventListener("click", this.evenlistener.click);
+        this.viewCanvas.removeEventListener(
+            "mousedown",
+            this.evenlistener.mousedown
+        );
+        this.viewCanvas.removeEventListener(
+            "mouseup",
+            this.evenlistener.mouseup
+        );
         this.viewCanvas.removeEventListener(
             "mousemove",
             this.evenlistener.mousemove
         );
         this.enemys = [];
         this.eventFunc = {};
+        this.shotSound.remove();
     }
 
     getEnemyCount() {
