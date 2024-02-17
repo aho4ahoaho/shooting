@@ -6,6 +6,7 @@ const startEnemyCount = 100; //100*50ms = 5s
 const defaultFrameTime = 50; //ms
 const shotRate = 1000 / 9.75; //ms 9.75発/秒
 type GameEvent = "start" | "end" | "kill" | "spawn";
+type Positon = { x: number; y: number };
 
 export class GameEngine {
     //描画用パラメータ
@@ -25,8 +26,9 @@ export class GameEngine {
     private enemys: Enemy[] = [];
     private beforeEnemyCount: number = startEnemyCount;
     private level: number = 1;
-    private scope: { x: number; y: number } = { x: 0, y: 0 };
+    private scope: Positon = { x: 0, y: 0 };
     private score: number = 0;
+    private landBullet: Positon[] = [];
 
     //素材
     readonly shotSound = new Audio("/assets/nc230658.ogg");
@@ -87,10 +89,10 @@ export class GameEngine {
         //クリック判定
         let shotTimer = 0;
         const onMouseDown = () => {
-            this.shot();
+            this.shot(); //初段はエラーなしで撃つ
             if (shotTimer) return;
             shotTimer = setInterval(() => {
-                this.shot();
+                this.shot(10);
             }, shotRate);
         };
         const onMouseUp = () => {
@@ -151,16 +153,14 @@ export class GameEngine {
         this.viewCtx.drawImage(this.bufferCanvas, 0, 0);
     }
 
-    shot() {
+    shot(errorRate = 0) {
         if (this.timerId === null) return;
         this.shotSound.currentTime = 0;
         this.shotSound.play();
-        for (const enemy of this.enemys) {
-            const { x: ex, y: ey } = enemy.getPos(); //敵は右下に描画される
-            const { x: sx, y: sy } = this.scope; //スコープは中心に描画される
-            const dx = ex + enemySize / 2 - sx;
-            const dy = ey + enemySize / 2 - sy;
-            if (dx * dx + dy * dy < hitSize * hitSize) {
+        const shotPos = errorCalculate(this.scope, errorRate);
+        this.enemys.map(async (enemy) => {
+            const enemyPos = enemy.getPos(); //敵は右下に描画される
+            if (hitJudge(enemyPos, shotPos, enemySize)) {
                 this.enemys = this.enemys.filter((e) => e !== enemy);
                 if (this.level < 40) {
                     //序盤は一気に増やす
@@ -174,9 +174,9 @@ export class GameEngine {
                 }
                 this.eventFunc.kill?.();
                 this.score += 1;
-                break;
             }
-        }
+        });
+        this.landBullet.push(shotPos);
     }
 
     spawnEnemy() {
@@ -220,6 +220,12 @@ export class GameEngine {
         }
         //スコープを描画
         scopeRender(this.ctx, this.scope);
+        //着弾点を描画
+        for (const { x, y } of this.landBullet) {
+            this.ctx.fillStyle = "yellow";
+            this.ctx.fillRect(x, y, 1, 1);
+        }
+        this.landBullet = [];
         //バッファを移す
         this.refresh();
     }
@@ -258,7 +264,9 @@ const scopeRender = (
     ctx: CanvasRenderingContext2D,
     { x, y }: { x: number; y: number }
 ) => {
+    ctx.save();
     ctx.strokeStyle = "green";
+    ctx.lineWidth = 0.5;
     ctx.beginPath();
 
     //円を描く
@@ -272,6 +280,7 @@ const scopeRender = (
     ctx.closePath();
 
     ctx.stroke();
+    ctx.restore();
 };
 
 const titleScreen = (ctx: CanvasRenderingContext2D) => {
@@ -313,3 +322,19 @@ const gameoverScreen = async (ctx: CanvasRenderingContext2D, score: number) => {
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const errorCalculate = (pos: Positon, errorRate: number): Positon => {
+    if (errorRate === 0) return pos;
+    const x = pos.x + (Math.random() - 0.5) * errorRate;
+    const y = pos.y + (Math.random() - 0.5) * errorRate;
+    return { x, y };
+};
+
+const hitJudge = (enemyPos: Positon, shotPos: Positon, enemySize: number) => {
+    const { x: ex, y: ey } = enemyPos;
+    const { x: sx, y: sy } = shotPos;
+    const dx = ex + enemySize / 2 - sx;
+    const dy = ey + enemySize / 2 - sy;
+    //enemySizeは辺の長さ、dx^2 + dy^2 < (hitSize/2)^2 で当たり判定
+    return dx * dx + dy * dy < (hitSize * hitSize) / 4;
+};
