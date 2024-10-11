@@ -41,7 +41,7 @@ export const useGameHook = () => {
 
         //描画コンテキストを取得
         const ctx = canvas.getContext("2d");
-        if (!ctx) return;
+        if (!ctx || !canvasRef.current) return;
         gameRef.current = new GameEngine(canvasRef.current, scale);
         gameRef.current.on("kill", onKillEvent);
         gameRef.current.on("spawn", onSpawnEvent);
