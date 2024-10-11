@@ -9,7 +9,7 @@
         "preview": "vite preview",
         "lint": "eslint . --ext .ts,.tsx --fix",
         "format": "prettier --write .",
-        "prepare": "husky install"
+        "prepare": "husky"
     },
     "dependencies": {
         "preact": "^10.19.1",
